@@ -9,8 +9,34 @@ def tps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cov = prediction_sets[np.arange(prediction_sets.shape[0]),val_labels].mean()
     eff = np.sum(prediction_sets)/len(prediction_sets)
     return prediction_sets, cov, eff
-    
-def aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
+
+def aps_helper(probs):
+    probs_pi = np.argsort(-probs, axis=1)
+    sorted_probs =  np.take_along_axis(probs, probs_pi, axis=1)
+    PI = np.zeros((sorted_probs.shape[0], sorted_probs.shape[1] + 1))
+    PI[:, 1:] = np.cumsum(sorted_probs, axis=1)
+    # fix ranks
+    ranks = np.argsort(probs_pi, axis=1)
+    u_vec = np.random.uniform(low=0.0, high=1.0, size=probs.shape)
+    #cls_scores = np.take(PI, ranks + 1)# + (1 - u_vec) * probs
+    cls_scores = np.take_along_axis(PI, ranks, axis=1) + u_vec * probs
+    #cls_scores = np.take_along_axis(PI, ranks+1, 1)
+    #cls_scores = PI.gather(1, ranks) + (1 - u_vec) * probs
+    cls_scores = np.clip(cls_scores, a_min=0, a_max=1) #np.min(cls_scores, np.ones_like(cls_scores))
+    # TODO: clip vs min
+    return cls_scores
+
+def new_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
+    cal_scores = aps_helper(cal_smx)
+    cal_label_scores = np.take_along_axis(cal_scores, cal_labels.reshape(-1, 1), axis=1)
+    qhat = np.quantile(cal_label_scores.flatten(), np.ceil((n + 1) * (1 - alpha)) / n, method='higher')
+    val_scores = aps_helper(val_smx)
+    prediction_sets = (val_scores <= qhat)
+    cov = np.take_along_axis(prediction_sets, val_labels.reshape(-1, 1), axis=1).sum()/len(prediction_sets)
+    eff = prediction_sets.sum(axis=1).sum()/(len(prediction_sets))
+    return prediction_sets, cov, eff
+
+def old_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cal_pi = cal_smx.argsort(1)[:, ::-1]
     cal_srt = np.take_along_axis(cal_smx, cal_pi, axis=1).cumsum(axis=1)
     cal_scores = np.take_along_axis(cal_srt, cal_pi.argsort(axis=1), axis=1)[
@@ -25,6 +51,8 @@ def aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cov = prediction_sets[np.arange(prediction_sets.shape[0]),val_labels].mean()
     eff = np.sum(prediction_sets)/len(prediction_sets)
     return prediction_sets, cov, eff
+
+aps = old_aps
         
 def raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     lam_reg = 0.01
@@ -135,6 +163,7 @@ def run_conformal_classification(pred, data, n, alpha, score = 'aps',
             prediction_sets, cov, eff = tps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
         elif score == 'aps':
             prediction_sets, cov, eff = aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
+            #prediction_sets, cov, eff = new_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
         elif score == 'raps':
             prediction_sets, cov, eff = raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
         elif score == 'threshold':

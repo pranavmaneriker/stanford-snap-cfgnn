@@ -600,7 +600,8 @@ def main(args):
                 else:
                     train_calib_idx = train_idx[int(len(train_idx)/2):]
                     train_test_idx = train_train_idx
-            
+
+            ## Actual CFGNN trained here 
             print('Starting topology-aware conformal correction...')
             for epoch in range(1, args.epochs + 1):  
                 if (not args.conftr_holdout) and (not args.conftr_calib_holdout) and (not args.conftr_valid_holdout):

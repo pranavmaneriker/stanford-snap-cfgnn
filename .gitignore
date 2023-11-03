@@ -2,3 +2,4 @@ model/
 dataset_regression/
 data/
 .ipynb_checkpoints/
+__pycache__
