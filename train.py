@@ -74,10 +74,16 @@ parser.add_argument('--ablation', type=str, default='NULL', choices = ['NULL','m
 parser.add_argument('--calib_fraction', type=float, default=0.5)
 parser.add_argument('--optimize_conformal_score', type=str, default='aps', choices = ['aps', 'raps'])
 
+parser.add_argument('--use_fixed_aps', action='store_true', default = False)
 
 args = parser.parse_args()
 
 global task
+global aps_method
+if args.use_fixed_aps:
+    aps_method = 'new_aps'
+else:
+    aps_method = 'old_aps'
 if args.dataset in ['Anaheim', 
                     'ChicagoSketch',  
                     'county_education_2012', 
@@ -476,7 +482,7 @@ def main(args):
         if task == 'regression':
             result_this_run['gnn']['CQR'] = run_conformal_regression(pred, data, n, alpha, calib_eval = False)
         else:
-            result_this_run['gnn']['APS'] = run_conformal_classification(pred, data, n, alpha, score = 'aps', calib_eval = False)
+            result_this_run['gnn']['APS'] = run_conformal_classification(pred, data, n, alpha, score = aps_method, calib_eval = False)
             result_this_run['gnn']['RAPS'] = run_conformal_classification(pred, data, n, alpha, score = 'raps', calib_eval = False)
         
         condcov_epochs = []
@@ -694,7 +700,7 @@ def main(args):
 
                         loss_cov = loss_cov.squeeze()
                         #print(loss_cov.item())
-                        #print(run_conformal_classification(out, data, n, alpha, score = 'aps', validation_set = True))
+                        #print(run_conformal_classification(out, data, n, alpha, score = aps_method, validation_set = True))
                     pred_loss = F.cross_entropy(out[train_train_idx], data.y[train_train_idx])
 
                     if args.conftr:
@@ -712,7 +718,7 @@ def main(args):
                     '''
                     cov_all, eff_all, pred_set_all, val_labels_all, idx_all = run_conformal_classification(out, 
                                                                                        data, n, args.alpha, 
-                                                                                       score = 'aps', 
+                                                                                       score = aps_method, 
                                                                                        calib_eval = True, 
                                                                                        validation_set = False, 
                                                                                        use_additional_calib = False, 
@@ -746,7 +752,7 @@ def main(args):
                 if task == 'regression':
                     eff_valid = run_conformal_regression(pred, data, n, alpha, validation_set = True)[1]
                 else:
-                    eff_valid = run_conformal_classification(pred, data, n, alpha, score = 'aps', validation_set = True)[1]
+                    eff_valid = run_conformal_classification(pred, data, n, alpha, score = aps_method, validation_set = True)[1]
                     
                 if args.wandb:
                     wandb.log({'run_' + str(run) + '_eff_valid': eff_valid})
@@ -771,9 +777,9 @@ def main(args):
                 result_this_run['conf_gnn']['eff_valid'] = run_conformal_regression(best_pred, data, n, alpha, validation_set = True)[1]
             
             else:
-                result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'aps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
+                result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
-                result_this_run['conf_gnn']['eff_valid'] = run_conformal_classification(best_pred, data, n, alpha, score = 'aps', validation_set = True)[1]
+                result_this_run['conf_gnn']['eff_valid'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, validation_set = True)[1]
                 result_this_run['conf_gnn']['eff_valid_raps'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', validation_set = True)[1]
             
         if args.optimal_examine:
@@ -783,11 +789,14 @@ def main(args):
         tau2res[run] = result_this_run
         print('Finished training this run!')
       
-    if not os.path.exists('./pred'):
-        os.mkdir('./pred')
+    if not os.path.exists('./pred/script_expt/old_aps/'):
+        os.makedirs('./pred/script_expt/old_aps/')
+    if not os.path.exists('./pred/script_expt/new_aps/'):
+        os.makedirs('./pred/script_expt/new_aps/')
+
     if not args.not_save_res:
-        print('Saving results to', './pred/' + name +'.pkl')
-        with open('./pred/' + name +'.pkl', 'wb') as f:
+        print('Saving results to', './pred/script_expt/' + aps_method + '/' + name +'.pkl')
+        with open('./pred/script_expt/' + aps_method + '/' + name +'.pkl', 'wb') as f:
             pickle.dump(tau2res, f)
         
     if args.hyperopt:        

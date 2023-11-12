@@ -51,8 +51,6 @@ def old_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cov = prediction_sets[np.arange(prediction_sets.shape[0]),val_labels].mean()
     eff = np.sum(prediction_sets)/len(prediction_sets)
     return prediction_sets, cov, eff
-
-aps = old_aps
         
 def raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     lam_reg = 0.01
@@ -161,9 +159,10 @@ def run_conformal_classification(pred, data, n, alpha, score = 'aps',
         
         if score == 'tps':
             prediction_sets, cov, eff = tps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
-        elif score == 'aps':
-            prediction_sets, cov, eff = aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
-            #prediction_sets, cov, eff = new_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
+        elif score == 'old_aps':
+            prediction_sets, cov, eff = old_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
+        elif score == 'new_aps':
+            prediction_sets, cov, eff = new_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
         elif score == 'raps':
             prediction_sets, cov, eff = raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
         elif score == 'threshold':
