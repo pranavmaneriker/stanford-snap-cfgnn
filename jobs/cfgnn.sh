@@ -21,4 +21,5 @@ srun python train.py \
     --dataset $1 \
     --device cuda \
     --alpha $2 \
+    --optimal \
     --use_fixed_aps
