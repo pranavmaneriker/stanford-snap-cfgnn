@@ -17,7 +17,8 @@ def aps_helper(probs):
     PI[:, 1:] = np.cumsum(sorted_probs, axis=1)
     # fix ranks
     ranks = np.argsort(probs_pi, axis=1)
-    u_vec = np.random.uniform(low=0.0, high=1.0, size=probs.shape)
+    #u_vec = np.random.uniform(low=0.0, high=1.0, size=probs.shape)
+    u_vec = np.random.rand(*probs.shape)
     #cls_scores = np.take(PI, ranks + 1)# + (1 - u_vec) * probs
     cls_scores = np.take_along_axis(PI, ranks, axis=1) + u_vec * probs
     #cls_scores = np.take_along_axis(PI, ranks+1, 1)
@@ -52,6 +53,51 @@ def old_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     eff = np.sum(prediction_sets)/len(prediction_sets)
     return prediction_sets, cov, eff
         
+def raps_fixed(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
+    import pdb; pdb.set_trace()
+    lam_reg = 0.01
+    k_reg = min(5, cal_smx.shape[1])
+    disallow_zero_sets = False
+    rand = True
+    # calibration, only needs the label scores
+    cal_pi = np.argsort(-cal_smx, axis=1) # argsort probs in descending order
+    cal_sorted_pi = np.take_along_axis(cal_smx, cal_pi, axis=1) # sort probs in descending order of probs 
+    cal_ranks = np.argsort(cal_pi, axis=1) # ranks for descending order
+    label_ranks = np.take_along_axis(cal_ranks, cal_labels.reshape(-1, 1), axis=1) # ranks for each label
+    cal_csum = np.cumsum(cal_sorted_pi, axis=1) # cumulative sum of probs acc to descending rank
+    label_csum = np.take_along_axis(cal_csum, label_ranks.reshape(-1, 1), axis=1) # cumulative sum of probs acc to descending rank for each label
+    reg_vec = np.maximum(0, lam_reg * (label_ranks - k_reg)) # regularization vector for label scores
+    cal_scores = label_csum  + reg_vec # label scores for calibration set
+    if rand:
+        cal_scores -= np.random.rand(n, 1) * np.take_along_axis(cal_smx, cal_labels.reshape(-1, 1), axis=1)
+    qhat = np.quantile(cal_scores, np.ceil((n+1)*(1-alpha))/n, method='higher') # quantile for calibration set
+    # validation
+    n_val = val_smx.shape[0]
+    k = val_smx.shape[1]
+    val_pi = np.argsort(-val_smx, axis=1)
+    val_sorted_pi = np.take_along_axis(val_smx, val_pi, axis=1)
+    val_ranks = np.argsort(val_pi, axis=1)
+    val_csum = np.cumsum(val_sorted_pi, axis=1)
+    range_array = np.tile(np.arange(k).repeat(1, -1), (n_val, 1))
+    val_reg = np.maximum(0, lam_reg * (range_array - k_reg))
+    val_sets = (val_csum + val_reg) <= qhat
+    L_vec = np.sum(val_sets, axis=1) # + 1 # L as defined in the paper, +1 not added since 0 indexed
+    if rand:
+        u = np.random.rand(n_val, 1)
+        num = np.take_along_axis(val_csum, L_vec.reshape(-1, 1), axis=1) + lam_reg * np.maximum(0, L_vec.reshape(-1, 1) - k_reg) - qhat
+        deno = np.take_along_axis(val_sorted_pi, L_vec.reshape(-1, 1), axis=1) + lam_reg * (L_vec.reshape(-1, 1) > k_reg)
+        indicator_vector = (num/deno <= u)
+        L_vec = L_vec - indicator_vector.reshape(-1)
+    prediction_sets = np.zeros(val_smx.shape, dtype=np.bool_)
+    if disallow_zero_sets: prediction_sets[:, 0] = True
+    for row, ind in enumerate(L_vec):
+        indices_to_set = val_pi[row, :(ind + 1)]
+        prediction_sets[row, indices_to_set] = True
+    cov = np.take_along_axis(prediction_sets, val_labels.reshape(-1, 1), axis=1).sum()/len(prediction_sets)
+    eff = prediction_sets.sum(axis=1).sum()/(len(prediction_sets))
+    return prediction_sets, cov, eff
+
+
 def raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     lam_reg = 0.01
     k_reg = min(5, cal_smx.shape[1])
@@ -165,6 +211,8 @@ def run_conformal_classification(pred, data, n, alpha, score = 'aps',
             prediction_sets, cov, eff = new_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
         elif score == 'raps':
             prediction_sets, cov, eff = raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
+        elif score == "new_raps":
+            prediction_sets, cov, eff = raps_fixed(cal_smx, val_smx, cal_labels, val_labels, n, alpha)
         elif score == 'threshold':
             prediction_sets, cov, eff = threshold(cal_smx, val_smx, cal_labels, val_labels, n, alpha)  
             

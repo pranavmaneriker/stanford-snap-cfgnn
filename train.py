@@ -80,10 +80,15 @@ args = parser.parse_args()
 
 global task
 global aps_method
+global raps_method
+
 if args.use_fixed_aps:
     aps_method = 'new_aps'
+    raps_method = "new_raps"
 else:
     aps_method = 'old_aps'
+    raps_method = "raps"
+
 if args.dataset in ['Anaheim', 
                     'ChicagoSketch',  
                     'county_education_2012', 
@@ -483,7 +488,7 @@ def main(args):
             result_this_run['gnn']['CQR'] = run_conformal_regression(pred, data, n, alpha, calib_eval = False)
         else:
             result_this_run['gnn']['APS'] = run_conformal_classification(pred, data, n, alpha, score = aps_method, calib_eval = False)
-            result_this_run['gnn']['RAPS'] = run_conformal_classification(pred, data, n, alpha, score = 'raps', calib_eval = False)
+            result_this_run['gnn']['RAPS'] = run_conformal_classification(pred, data, n, alpha, score = raps_method, calib_eval = False)
         
         condcov_epochs = []
         if args.optimal_examine:
@@ -778,9 +783,9 @@ def main(args):
             
             else:
                 result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
-                result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
+                result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = raps_method, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['eff_valid'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, validation_set = True)[1]
-                result_this_run['conf_gnn']['eff_valid_raps'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', validation_set = True)[1]
+                result_this_run['conf_gnn']['eff_valid_raps'] = run_conformal_classification(best_pred, data, n, alpha, score = raps_method, validation_set = True)[1]
             
         if args.optimal_examine:
             optimal_examine_res['confgnn_pred'] = best_pred

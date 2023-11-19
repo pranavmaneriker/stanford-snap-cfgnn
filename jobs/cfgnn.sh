@@ -1,24 +1,25 @@
 #!/bin/bash
-#SBATCH --account PAS2030
-#SBATCH --partition=gpuserial
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=28
-#SBATCH -J conformal_5_1
-#SBATCH --gres=gpu:1
-#SBATCH --time=1-00:00:00
-#SBATCH -o /users/PAS2065/adityatv/jobs/slurm-out-%A.txt
-#SBATCH -e /users/PAS2065/adityatv/jobs/slurm-err-%A.txt
 
-. /users/PAS2065/adityatv/miniconda3/etc/profile.d/conda.sh
-conda deactivate
-conda activate fairgraph
+#SBATCH -N 1                    # use 2 nodes
+#SBATCH -n 16                   # use 16 processes
+#SBATCH -t 4:00:00             # 0 days, 4 hours, 0 minutes, 0 seconds
+#SBATCH -p a100                 # use the a100 gpu partition
+#SBATCH -J conformal_5_1_cora        # Job name
+#SBATCH --mem=32000
+#SBATCH -G 1                    # 1 GPU
+#SBATCH -e /home/maneriker.1/conformalized-gnn/jobs/logs/%x_%j.err
+#SBATCH -o /home/maneriker.1/conformalized-gnn/jobs/logs/%x_%j.out
 
-# __script_start__
-cd $HOME/stanford-snap-cfgnn
+
+module purge
+source /home/maneriker.1/.bashrc
+
+cd /home/maneriker.1/conformalized-gnn/
+conda activate conformalized-gnn
 srun python train.py \
     --model GCN \
     --dataset $1 \
     --device cuda \
     --alpha $2 \
-    --use_fixed_aps
+    --use_fixed_aps \
+    --optimal
