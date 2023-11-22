@@ -54,7 +54,6 @@ def old_aps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     return prediction_sets, cov, eff
         
 def raps_fixed(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
-    import pdb; pdb.set_trace()
     lam_reg = 0.01
     k_reg = min(5, cal_smx.shape[1])
     disallow_zero_sets = False
@@ -66,7 +65,7 @@ def raps_fixed(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     label_ranks = np.take_along_axis(cal_ranks, cal_labels.reshape(-1, 1), axis=1) # ranks for each label
     cal_csum = np.cumsum(cal_sorted_pi, axis=1) # cumulative sum of probs acc to descending rank
     label_csum = np.take_along_axis(cal_csum, label_ranks.reshape(-1, 1), axis=1) # cumulative sum of probs acc to descending rank for each label
-    reg_vec = np.maximum(0, lam_reg * (label_ranks - k_reg)) # regularization vector for label scores
+    reg_vec = np.maximum(0, lam_reg * (label_ranks + 1 - k_reg)) # regularization vector for label scores, adjusting for 1-indexing
     cal_scores = label_csum  + reg_vec # label scores for calibration set
     if rand:
         cal_scores -= np.random.rand(n, 1) * np.take_along_axis(cal_smx, cal_labels.reshape(-1, 1), axis=1)
@@ -76,22 +75,25 @@ def raps_fixed(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     k = val_smx.shape[1]
     val_pi = np.argsort(-val_smx, axis=1)
     val_sorted_pi = np.take_along_axis(val_smx, val_pi, axis=1)
-    val_ranks = np.argsort(val_pi, axis=1)
-    val_csum = np.cumsum(val_sorted_pi, axis=1)
+    #val_ranks = np.argsort(val_pi, axis=1)
+    # scores are 0-indexed, ranks are 1 indexed for score computation so some +1 adjustments are needed in ranks
+    val_csum = np.zeros((n_val, k+1))
+    val_csum[:, 1:] = np.cumsum(val_sorted_pi, axis=1)
     range_array = np.tile(np.arange(k).repeat(1, -1), (n_val, 1))
-    val_reg = np.maximum(0, lam_reg * (range_array - k_reg))
-    val_sets = (val_csum + val_reg) <= qhat
-    L_vec = np.sum(val_sets, axis=1) # + 1 # L as defined in the paper, +1 not added since 0 indexed
+    val_reg = np.maximum(0, lam_reg * (range_array + 1 - k_reg)) # ranks are 1 to k
+    val_sets = (val_csum[:, 1:] + val_reg) <= qhat
+    L_vec = np.sum(val_sets, axis=1) + 1 # varies from 1 to k (both included) 
+    # include fraction of Lth elements
     if rand:
         u = np.random.rand(n_val, 1)
         num = np.take_along_axis(val_csum, L_vec.reshape(-1, 1), axis=1) + lam_reg * np.maximum(0, L_vec.reshape(-1, 1) - k_reg) - qhat
-        deno = np.take_along_axis(val_sorted_pi, L_vec.reshape(-1, 1), axis=1) + lam_reg * (L_vec.reshape(-1, 1) > k_reg)
+        deno = np.take_along_axis(val_sorted_pi, L_vec.reshape(-1, 1) - 1, axis=1) + lam_reg * (L_vec.reshape(-1, 1) > k_reg)
         indicator_vector = (num/deno <= u)
-        L_vec = L_vec - indicator_vector.reshape(-1)
+        L_vec = (L_vec - indicator_vector.reshape(-1))
     prediction_sets = np.zeros(val_smx.shape, dtype=np.bool_)
     if disallow_zero_sets: prediction_sets[:, 0] = True
     for row, ind in enumerate(L_vec):
-        indices_to_set = val_pi[row, :(ind + 1)]
+        indices_to_set = val_pi[row, :np.minimum(ind + 1, k)] # TODO: vectorize
         prediction_sets[row, indices_to_set] = True
     cov = np.take_along_axis(prediction_sets, val_labels.reshape(-1, 1), axis=1).sum()/len(prediction_sets)
     eff = prediction_sets.sum(axis=1).sum()/(len(prediction_sets))
@@ -124,6 +126,7 @@ def raps(cal_smx, val_smx, cal_labels, val_labels, n, alpha):
     cov = prediction_sets[np.arange(prediction_sets.shape[0]),val_labels].mean()
     eff = np.sum(prediction_sets)/len(prediction_sets)
     return prediction_sets, cov, eff
+
     
 def cqr(cal_labels, cal_lower, cal_upper, val_labels, val_lower, val_upper, n, alpha):
     cal_scores = np.maximum(cal_labels-cal_upper, cal_lower-cal_labels)
