@@ -489,6 +489,7 @@ def main(args):
         else:
             result_this_run['gnn']['APS'] = run_conformal_classification(pred, data, n, alpha, score = aps_method, calib_eval = False)
             result_this_run['gnn']['RAPS'] = run_conformal_classification(pred, data, n, alpha, score = raps_method, calib_eval = False)
+            result_this_run['gnn']['TPS'] = run_conformal_classification(pred, data, n, alpha, score = 'tps', calib_eval = False)
         
         condcov_epochs = []
         if args.optimal_examine:
@@ -784,6 +785,7 @@ def main(args):
             else:
                 result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = raps_method, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
+                result_this_run['conf_gnn']['TPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'tps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['eff_valid'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, validation_set = True)[1]
                 result_this_run['conf_gnn']['eff_valid_raps'] = run_conformal_classification(best_pred, data, n, alpha, score = raps_method, validation_set = True)[1]
             
