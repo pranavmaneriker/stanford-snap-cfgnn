@@ -484,7 +484,8 @@ def main(args):
         else:
             result_this_run['gnn']['APS'] = run_conformal_classification(pred, data, n, alpha, score = aps_method, calib_eval = False)
             result_this_run['gnn']['RAPS'] = run_conformal_classification(pred, data, n, alpha, score = 'raps', calib_eval = False)
-        
+            result_this_run['gnn']['TPS'] = run_conformal_classification(pred, data, n, alpha, score = 'tps', calib_eval = False)
+
         condcov_epochs = []
         if args.optimal_examine:
             optimal_examine_res['gnn_pred'] = pred
@@ -779,9 +780,11 @@ def main(args):
             else:
                 result_this_run['conf_gnn']['APS'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['RAPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
+                result_this_run['conf_gnn']['TPS'] = run_conformal_classification(best_pred, data, n, alpha, score = 'tps', calib_eval = args.conftr_calib_holdout, calib_fraction = args.calib_fraction)
                 result_this_run['conf_gnn']['eff_valid'] = run_conformal_classification(best_pred, data, n, alpha, score = aps_method, validation_set = True)[1]
                 result_this_run['conf_gnn']['eff_valid_raps'] = run_conformal_classification(best_pred, data, n, alpha, score = 'raps', validation_set = True)[1]
-            
+                result_this_run['conf_gnn']['eff_valid_tps'] = run_conformal_classification(best_pred, data, n, alpha, score = 'tps', validation_set = True)[1]
+
         if args.optimal_examine:
             optimal_examine_res['confgnn_pred'] = best_pred
             optimal_examine_res['condcov_epochs'] = condcov_epochs
@@ -803,8 +806,10 @@ def main(args):
         if task == 'classification':
             wandb.log({'gnn_aps_eff': np.mean([result_this_run['gnn']['APS'][1] for i, result_this_run in tau2res.items()])})
             wandb.log({'gnn_raps_eff': np.mean([result_this_run['gnn']['RAPS'][1] for i, result_this_run in tau2res.items()])})
+            wandb.log({'gnn_tps_eff': np.mean([result_this_run['gnn']['TPS'][1] for i, result_this_run in tau2res.items()])})
             wandb.log({'confgnn_aps_eff': np.mean([result_this_run['conf_gnn']['APS'][1] for i, result_this_run in tau2res.items()])})
             wandb.log({'confgnn_raps_eff': np.mean([result_this_run['conf_gnn']['RAPS'][1] for i, result_this_run in tau2res.items()])})
+            wandb.log({'confgnn_tps_eff': np.mean([result_this_run['conf_gnn']['TPS'][1] for i, result_this_run in tau2res.items()])})
             wandb.log({'eff_valid_aps': np.mean([result_this_run['conf_gnn']['eff_valid'] for i, result_this_run in tau2res.items()])})
             wandb.log({'eff_valid_raps': np.mean([result_this_run['conf_gnn']['eff_valid_raps'] for i, result_this_run in tau2res.items()])})
             
